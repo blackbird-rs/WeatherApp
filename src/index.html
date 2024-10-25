@@ -7,26 +7,56 @@
   <link rel="stylesheet" href="../dist/styles.css">
   <title>Weather App</title>
 </head>
-<body>
-  <div>
-    <input type="text" placeholder="Enter text" id="placeInput">
-    <span id="forecast">
-      Get Forecast for 
-      <select id="daySelection">
-        <option value="1">1</option>
-        <option value="2">2</option>
-        <option value="3">3</option>
-        <option value="4">4</option>
-        <option value="5">5</option>
-        <option value="6">6</option>
-        <option value="7">7</option>
-      </select> 
-      Days
-    </span>
-    <ul id="placeResults"></ul>
+<body class="bg-gradient-to-r from-blue-200 to-blue-400 min-h-screen flex justify-center items-center">
+  <div class="absolute top-0 left-0 w-full flex justify-center p-4 z-10">
+    <nav class="bg-white bg-opacity-30 backdrop-blur-md rounded-full p-2 flex space-x-4 shadow-md">
+      <button id="searchTab" class="px-4 py-2 rounded-full hover:bg-opacity-50 focus:outline-none focus:ring-2 focus:ring-blue-500">Search</button>
+      <button id="favoritesTab" class="px-4 py-2 rounded-full hover:bg-opacity-50 focus:outline-none focus:ring-2 focus:ring-blue-500">Favorites</button>
+    </nav>
+  </div>
+  <div id="content" class="mt-60">
+    <div id="search" class="bg-white bg-opacity-30 backdrop-blur-md rounded-lg p-6 shadow-lg max-w-md w-full z-0">
+      <div class="relative">
+        <input type="text" placeholder="Enter text" id="placeInput" class="w-full p-2 rounded-md">
+        <ul id="placeResults" class="absolute bg-white bg-opacity-30 backdrop-blur-md rounded-lg shadow-lg w-full mt-1"></ul>
+      </div>
+      <span id="forecast" class="block mt-4">
+        Get Forecast for 
+        <select id="daySelection" class="p-2 rounded-md">
+          <option value="1">1</option>
+          <option value="2">2</option>
+          <option value="3">3</option>
+          <option value="4">4</option>
+          <option value="5">5</option>
+          <option value="6">6</option>
+          <option value="7">7</option>
+        </select> 
+        Days
+      </span>
+      <div id="currentWeatherResults" class="mt-4"></div>
+      <div id="forecastResults" class="mt-4"></div>
+    </div>
+    <div id="favorites" class="hidden bg-white bg-opacity-30 backdrop-blur-md rounded-lg p-6 shadow-lg max-w-md w-full z-0">
+      <div id="favoritesResults" class="mt-4"></div>
+    </div>
   </div>
   
   <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
   <script src="main.js"></script>
+  <script>
+    document.getElementById('searchTab').addEventListener('click', function() {
+      document.getElementById('search').classList.remove('hidden');
+      document.getElementById('favorites').classList.add('hidden');
+      document.getElementById('searchTab').classList.add('bg-blue-500');
+      document.getElementById('favoritesTab').classList.remove('bg-blue-500');
+    });
+    document.getElementById('favoritesTab').addEventListener('click', function() {
+      document.getElementById('favorites').classList.remove('hidden');
+      document.getElementById('search').classList.add('hidden');
+      document.getElementById('favoritesTab').classList.add('bg-blue-500');
+      document.getElementById('searchTab').classList.remove('bg-blue-500');
+    });
+    document.getElementById('searchTab').click();
+  </script>
 </body>
 </html>

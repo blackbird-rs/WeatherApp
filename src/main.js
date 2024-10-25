@@ -6,19 +6,8 @@ const FORECAST_URL = 'https://api.openweathermap.org/data/2.5/forecast/daily?uni
 var selectedLat = ''
 var selectedLon = ''
 
-//eraseAllCookies();
-
-var favorites = [];
-var cookie = getCookie('favoriteCities');
-if(cookie != null){
-  favorites = JSON.parse(cookie);
-  for(var i = 0; i < favorites.length; i++){
-    selectedLat = favorites[i][0];
-    selectedLon = favorites[i][1];
-    getCurrentWeather();
-  }
-}
-console.log(favorites);
+var favorites = []; 
+loadFavorites();
 
 //Dom section
 var placeInputField = document.getElementById('placeInput');
@@ -30,6 +19,9 @@ var daySelection = document.getElementById('daySelection');
 daySelection.addEventListener('change', getForecast);
 
 var resultsWrapper = document.getElementById('placeResults');
+var currentWeatherResults = document.getElementById('currentWeatherResults');
+var forecastResults = document.getElementById('forecastResults');
+var favoritesResults = document.getElementById('favoritesResults');
 
 //Places search section
 function placeSearch(value) {
@@ -80,17 +72,17 @@ function pickPlace(button){
   while(resultsWrapper.firstChild){
     resultsWrapper.removeChild(resultsWrapper.firstChild);
   }
-  getCurrentWeather();
+  getCurrentWeather(false);
   setInterval(getCurrentWeather, 600000);
   favoriteCity();
 }
 
 //Current weather section
-function getCurrentWeather(){
+function getCurrentWeather(isFavorite){
   console.log('updated weather');
   axios.get(CURRENT_WEATHER_URL + selectedLat + '&lon=' + selectedLon + '&appid=' + API_KEY)
       .then(response => {
-        showWeatherResult(response.data);
+        showWeatherResult(response.data, isFavorite);
         })
       .catch(error => {
         console.error('Error fetching data:', error);
@@ -111,74 +103,158 @@ function getForecast(){
         });  
 }
 
-//Weather presentation section
-function showWeatherResult(data){
+// Weather presentation section
+function showWeatherResult(data, isFavorite) {
   var wrapper = document.createElement('div');
+  wrapper.className = 'border border-blue-700 rounded-lg p-4 my-4 bg-white bg-opacity-30';
+
+  var headline = document.createElement('h3');
+  headline.innerText = 'Current Weather';
+  headline.className = 'text-xl font-bold mb-2';
+
+  var cityInfo = document.createElement('div');
+  cityInfo.className = 'flex items-center mb-2';
+
+  var cityIcon = document.createElement('i');
+  cityIcon.className = 'fas fa-city mr-2';
+
   var cityName = document.createElement('h5');
-  var descriptiveInformation = document.createElement('p');
-  var temperature = document.createElement('p');
-  var wind = document.createElement('p');
-  var humidity = document.createElement('p');
-  var pressure = document.createElement('p');
-  var icon = document.createElement('img');
-
   cityName.innerText = data.name;
-  descriptiveInformation.innerText = data.weather[0].description;
+  cityName.className = 'text-lg font-semibold';
+
+  cityInfo.appendChild(cityIcon);
+  cityInfo.appendChild(cityName);
+
+  var infoWrapper = document.createElement('div');
+  infoWrapper.className = 'grid grid-cols-2 gap-4';
+
+  var descriptiveInformation = document.createElement('p');
+  descriptiveInformation.innerText = 'Description: ' + data.weather[0].description;
+
+  var temperature = document.createElement('p');
+  temperature.innerText = 'Temp: ' + data.main.temp + ' °C';
+
+  var wind = document.createElement('p');
+  wind.innerText = 'Wind: ' + data.wind.speed + ' m/s ' + data.wind.deg + '°';
+
+  var humidity = document.createElement('p');
+  humidity.innerText = 'Humidity: ' + data.main.humidity + '%';
+
+  var pressure = document.createElement('p');
+  pressure.innerText = 'Pressure: ' + data.main.pressure + ' hPa';
+
+  var icon = document.createElement('img');
   icon.src = 'https://openweathermap.org/img/wn/' + data.weather[0].icon + '.png';
-  temperature.innerText = data.main.temp
-  wind.innerText = data.wind.speed + "@" + data.wind.deg
-  humidity.innerText = data.main.humidity
-  pressure.innerText = data.main.pressure
+  icon.className = 'col-span-2 mx-auto';
 
-  wrapper.appendChild(cityName);
-  wrapper.appendChild(icon);
-  wrapper.appendChild(descriptiveInformation);
-  wrapper.appendChild(temperature);
-  wrapper.appendChild(wind);
-  wrapper.appendChild(humidity);
-  wrapper.appendChild(pressure);
+  infoWrapper.appendChild(icon);
+  infoWrapper.appendChild(descriptiveInformation);
+  infoWrapper.appendChild(temperature);
+  infoWrapper.appendChild(wind);
+  infoWrapper.appendChild(humidity);
+  infoWrapper.appendChild(pressure);
 
-  resultsWrapper.appendChild(wrapper);
+  wrapper.appendChild(headline);
+  wrapper.appendChild(cityInfo);
+  wrapper.appendChild(infoWrapper);
+
+  if (isFavorite) {
+    favoritesResults.appendChild(wrapper);
+  } else {
+    currentWeatherResults.appendChild(wrapper);
+  }
 }
 
-
-function showForecastResult(city, data){
+function showForecastResult(city, data) {
   var wrapper = document.createElement('div');
+  wrapper.className = 'border border-blue-700 rounded-lg p-4 my-4 bg-white bg-opacity-30';
+
+  var headline = document.createElement('h3');
+  headline.innerText = 'Forecast: ' + convertTimestampToDateTime(data.dt);
+  headline.className = 'text-xl font-bold mb-2';
+
+  var cityInfo = document.createElement('div');
+  cityInfo.className = 'flex items-center mb-2';
+
+  var cityIcon = document.createElement('i');
+  cityIcon.className = 'fas fa-city mr-2';
+
   var cityName = document.createElement('h5');
-  var descriptiveInformation = document.createElement('p');
-  var temperatureMax = document.createElement('p');
-  var temperatureMin = document.createElement('p');
-  var wind = document.createElement('p');
-  var humidity = document.createElement('p');
-  var pressure = document.createElement('p');
-  var icon = document.createElement('img');
-
   cityName.innerText = city.name;
-  descriptiveInformation.innerText = data.weather[0].description;
+  cityName.className = 'text-lg font-semibold';
+
+  cityInfo.appendChild(cityIcon);
+  cityInfo.appendChild(cityName);
+
+  var infoWrapper = document.createElement('div');
+  infoWrapper.className = 'grid grid-cols-2 gap-4';
+
+  var descriptiveInformation = document.createElement('p');
+  descriptiveInformation.innerText = 'Description: ' + data.weather[0].description.charAt(0).toUpperCase() + data.weather[0].description.slice(1);
+
+  var temperatureMax = document.createElement('p');
+  temperatureMax.innerText = 'Temp Max: ' + data.temp.max + ' °C';
+
+  var temperatureMin = document.createElement('p');
+  temperatureMin.innerText = 'Temp Min: ' + data.temp.min + ' °C';
+
+  var wind = document.createElement('p');
+  wind.innerText = 'Wind: ' + data.speed + ' m/s ' + data.deg + '°';
+
+  var humidity = document.createElement('p');
+  humidity.innerText = 'Humidity: ' + data.humidity + '%';
+
+  var pressure = document.createElement('p');
+  pressure.innerText = 'Pressure: ' + data.pressure + ' hPa';
+
+  var icon = document.createElement('img');
   icon.src = 'https://openweathermap.org/img/wn/' + data.weather[0].icon + '.png';
-  temperatureMax.innerText = data.temp.max;
-  temperatureMin.innerText = data.temp.min;
-  wind.innerText = data.speed + "@" + data.deg
-  humidity.innerText = data.humidity
-  pressure.innerText = data.pressure
+  icon.className = 'col-span-2 mx-auto';
 
-  wrapper.appendChild(cityName);
-  wrapper.appendChild(icon);
-  wrapper.appendChild(descriptiveInformation);
-  wrapper.appendChild(temperatureMax);
-  wrapper.appendChild(temperatureMin);
-  wrapper.appendChild(wind);
-  wrapper.appendChild(humidity);
-  wrapper.appendChild(pressure);
+  infoWrapper.appendChild(icon);
+  infoWrapper.appendChild(descriptiveInformation);
+  infoWrapper.appendChild(temperatureMax);
+  infoWrapper.appendChild(temperatureMin);
+  infoWrapper.appendChild(wind);
+  infoWrapper.appendChild(humidity);
+  infoWrapper.appendChild(pressure);
 
-  resultsWrapper.appendChild(wrapper);
+  wrapper.appendChild(headline);
+  wrapper.appendChild(cityInfo);
+  wrapper.appendChild(infoWrapper);
 
+  forecastResults.appendChild(wrapper);
+}
+
+function convertTimestampToDateTime(dt) {
+  const date = new Date(dt * 1000);
+
+  const day = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, '0'); // Months are zero-based
+  const year = String(date.getFullYear()).slice(-2);
+
+  return `${day}/${month}/${year}`;
 }
 
 //Favoriting section
 function favoriteCity(){
   favorites.push([selectedLat, selectedLon]);
   setCookie('favoriteCities', JSON.stringify(favorites), 7);
+  console.log(favorites);
+}
+
+function loadFavorites() {
+  //eraseAllCookies();
+
+  var cookie = getCookie('favoriteCities');
+  if(cookie != null){
+    favorites = JSON.parse(cookie);
+    for(var i = 0; i < favorites.length; i++){
+      selectedLat = favorites[i][0];
+      selectedLon = favorites[i][1];
+      getCurrentWeather(true);
+    }
+  }
   console.log(favorites);
 }
 
@@ -213,3 +289,4 @@ function eraseAllCookies() {
     document.cookie = name + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/";
   }
 }
+
