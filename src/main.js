@@ -4,8 +4,8 @@ const CURRENT_WEATHER_URL = `https://api.openweathermap.org/data/2.5/weather?uni
 const FORECAST_URL = `https://api.openweathermap.org/data/2.5/forecast/daily?units=metric&lat=`;
 const ICON_URL = `https://openweathermap.org/img/wn/`;
 
-let selectedLat = '';
-let selectedLon = '';
+let selectedLat = null;
+let selectedLon = null;
 
 // DOM section
 const placeInputField = document.getElementById('placeInput');
@@ -86,6 +86,9 @@ function pickPlace(button) {
   clearContainer(forecastResults);
   getCurrentWeather(false);
   setInterval(getCurrentWeather, 600000);
+  if(daySelection.value != ''){
+    getForecast();
+  };
 }
 
 // Current weather section
@@ -107,6 +110,10 @@ async function getCurrentWeather(isFavorite) {
 // Forecast section
 async function getForecast() {
   const numberOfDays = daySelection.value;
+  if(selectedLat === null || selectedLon === null){
+    forecastResults.innerHTML = '<p>Please select a city to look up the forecast</p>';
+    return;
+  }
   forecastResults.innerHTML = '<p>Fetching results, please hold...</p>';
   try {
     const response = await axios.get(`${FORECAST_URL}${selectedLat}&lon=${selectedLon}&cnt=${numberOfDays}&appid=${API_KEY}`);
