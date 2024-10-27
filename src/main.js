@@ -65,12 +65,12 @@ function updatePlaces(data) {
   clearContainer(resultsWrapper);
   if (data) {
     data.forEach((place, i) => {
-      const button = createElement('button', null, `${place.name}, ${place.country}`);
+      const button = createElement('button', 'w-full text-left p-2 hover:bg-gray-200', `${place.name}, ${place.country}`);
       button.id = `placeResult${i}`;
       button.setAttribute('data-lat', roundToTwoDecimal(place.lat));
       button.setAttribute('data-lon', roundToTwoDecimal(place.lon));
       button.addEventListener('click', () => pickPlace(button));
-      const li = createElement('li', null, null);
+      const li = createElement('li', 'border-b border-gray-300', null);
       li.appendChild(button);
       resultsWrapper.appendChild(li);
     });
