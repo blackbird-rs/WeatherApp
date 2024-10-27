@@ -6,9 +6,6 @@ const FORECAST_URL = 'https://api.openweathermap.org/data/2.5/forecast/daily?uni
 var selectedLat = ''
 var selectedLon = ''
 
-var favorites = []; 
-loadFavorites();
-
 //Dom section
 var placeInputField = document.getElementById('placeInput');
 placeInputField.addEventListener('input', function(){
@@ -22,6 +19,9 @@ var resultsWrapper = document.getElementById('placeResults');
 var currentWeatherResults = document.getElementById('currentWeatherResults');
 var forecastResults = document.getElementById('forecastResults');
 var favoritesResults = document.getElementById('favoritesResults');
+
+var favorites = []; 
+loadFavorites();
 
 //Places search section
 function placeSearch(value) {
@@ -72,9 +72,14 @@ function pickPlace(button){
   while(resultsWrapper.firstChild){
     resultsWrapper.removeChild(resultsWrapper.firstChild);
   }
+  while(currentWeatherResults.firstChild){
+    currentWeatherResults.removeChild(currentWeatherResults.firstChild);
+  }
+  while(forecastResults.firstChild){
+    forecastResults.removeChild(forecastResults.firstChild);
+  }
   getCurrentWeather(false);
   setInterval(getCurrentWeather, 600000);
-  favoriteCity();
 }
 
 //Current weather section
@@ -94,6 +99,9 @@ function getForecast(){
   var numberOfDays = daySelection.value;
   axios.get(FORECAST_URL + selectedLat + '&lon=' + selectedLon + '&cnt=' + numberOfDays + '&appid=' + API_KEY)
       .then(response => {
+          while(forecastResults.firstChild){
+            forecastResults.removeChild(forecastResults.firstChild);
+          }
           for(var i = 0; i < response.data.list.length; i++){
             showForecastResult(response.data.city, response.data.list[i]);
           }
@@ -105,6 +113,7 @@ function getForecast(){
 
 // Weather presentation section
 function showWeatherResult(data, isFavorite) {
+
   var wrapper = document.createElement('div');
   wrapper.className = 'border border-blue-700 rounded-lg p-4 my-4 bg-white bg-opacity-30';
 
@@ -113,7 +122,10 @@ function showWeatherResult(data, isFavorite) {
   headline.className = 'text-xl font-bold mb-2';
 
   var cityInfo = document.createElement('div');
-  cityInfo.className = 'flex items-center mb-2';
+  cityInfo.className = 'flex items-center mb-2 justify-between';
+
+  var cityNameWrapper = document.createElement('div');
+  cityNameWrapper.className = 'flex items-center';
 
   var cityIcon = document.createElement('i');
   cityIcon.className = 'fas fa-city mr-2';
@@ -122,8 +134,35 @@ function showWeatherResult(data, isFavorite) {
   cityName.innerText = data.name;
   cityName.className = 'text-lg font-semibold';
 
-  cityInfo.appendChild(cityIcon);
-  cityInfo.appendChild(cityName);
+  cityNameWrapper.appendChild(cityIcon);
+  cityNameWrapper.appendChild(cityName);
+
+  var favoriteButton = document.createElement('button');
+  var locationData = [selectedLat, selectedLon];
+  if(favorites != null){
+    console.log("proveravam favorite");
+    console.log(locationData);
+    console.log(favorites);
+    var locationDataString = JSON.stringify(locationData);
+    var contains = favorites.some(function(ele){
+      return JSON.stringify(ele) === locationDataString;
+    });
+    if(contains){
+      favoriteButton.className = `fa-solid fa-heart`;
+      favoriteButton.onclick = function(){
+        unfavoriteCity(data.name, data.coord.lat, data.coord.lon, this);
+      }
+    }
+    else{
+      favoriteButton.className = 'fa-regular fa-heart';
+      favoriteButton.onclick = function() {
+        favoriteCity(data.name, data.coord.lat, data.coord.lon, this);
+      };
+    }
+  }
+
+  cityInfo.appendChild(cityNameWrapper);
+  cityInfo.appendChild(favoriteButton);
 
   var infoWrapper = document.createElement('div');
   infoWrapper.className = 'grid grid-cols-2 gap-4';
@@ -162,6 +201,8 @@ function showWeatherResult(data, isFavorite) {
     favoritesResults.appendChild(wrapper);
   } else {
     currentWeatherResults.appendChild(wrapper);
+    currentWeatherResults.setAttribute('data-lat', data.coord.lat);
+    currentWeatherResults.setAttribute('data-lon', data.coord.lon);
   }
 }
 
@@ -174,7 +215,10 @@ function showForecastResult(city, data) {
   headline.className = 'text-xl font-bold mb-2';
 
   var cityInfo = document.createElement('div');
-  cityInfo.className = 'flex items-center mb-2';
+  cityInfo.className = 'flex items-center mb-2 justify-between';
+
+  var cityNameWrapper = document.createElement('div');
+  cityNameWrapper.className = 'flex items-center';
 
   var cityIcon = document.createElement('i');
   cityIcon.className = 'fas fa-city mr-2';
@@ -183,8 +227,10 @@ function showForecastResult(city, data) {
   cityName.innerText = city.name;
   cityName.className = 'text-lg font-semibold';
 
-  cityInfo.appendChild(cityIcon);
-  cityInfo.appendChild(cityName);
+  cityNameWrapper.appendChild(cityIcon);
+  cityNameWrapper.appendChild(cityName);
+
+  cityInfo.appendChild(cityNameWrapper);
 
   var infoWrapper = document.createElement('div');
   infoWrapper.className = 'grid grid-cols-2 gap-4';
@@ -225,7 +271,6 @@ function showForecastResult(city, data) {
 
   forecastResults.appendChild(wrapper);
 }
-
 function convertTimestampToDateTime(dt) {
   const date = new Date(dt * 1000);
 
@@ -236,26 +281,69 @@ function convertTimestampToDateTime(dt) {
   return `${day}/${month}/${year}`;
 }
 
-//Favoriting section
-function favoriteCity(){
-  favorites.push([selectedLat, selectedLon]);
+// Favoriting section
+function favoriteCity(name, lat, lon, button) {
+  favorites.push([lat, lon]);
+  button.className = 'fa-solid fa-heart';
   setCookie('favoriteCities', JSON.stringify(favorites), 7);
+  loadFavorites();
   console.log(favorites);
+}
+
+function unfavoriteCity(name, lat, lon, button){
+    const index = favorites.findIndex(fav => fav[0] === lat && fav[1] === lon);
+    favorites.splice(index, 1);
+    button.className = 'fa-regular fa-heart';
+    setCookie('favoriteCities', JSON.stringify(favorites), 7);
+    loadFavorites();
+    console.log(favorites);
+    checkCurrentResults(lat, lon);
 }
 
 function loadFavorites() {
   //eraseAllCookies();
-
+    while(favoritesResults.firstChild){
+      favoritesResults.removeChild(favoritesResults.firstChild);
+    }
   var cookie = getCookie('favoriteCities');
   if(cookie != null){
     favorites = JSON.parse(cookie);
+    console.log("yo");
+    if(favorites.length == 0){
+      var headline = document.createElement('h3');
+      headline.innerText = 'No favorites added yet';
+      headline.className = 'text-xl font-bold mb-2';
+      favoritesResults.appendChild(headline);
+      return;
+    }
     for(var i = 0; i < favorites.length; i++){
       selectedLat = favorites[i][0];
       selectedLon = favorites[i][1];
       getCurrentWeather(true);
     }
   }
+  else{
+    var headline = document.createElement('h3');
+    headline.innerText = 'No favorites added yet';
+    headline.className = 'text-xl font-bold mb-2';
+    favoritesResults.appendChild(headline);
+  }
   console.log(favorites);
+}
+
+function checkCurrentResults(favLat, favLon){
+  var lat = currentWeatherResults.getAttribute('data-lat');
+  var lon = currentWeatherResults.getAttribute('data-lon');
+  if(lat != null && lon != null){
+    if(favLat == lat && favLon == lon){
+      selectedLat = lat;
+      selectedLon = lon;
+      while(currentWeatherResults.firstChild){
+        currentWeatherResults.removeChild(currentWeatherResults.firstChild);
+      }
+      getCurrentWeather(false);
+    }
+  }
 }
 
 function setCookie(name, value, days) {
@@ -280,6 +368,7 @@ function getCookie(name) {
 }
 
 function eraseAllCookies() {
+  console.log("brisem");
   var cookies = document.cookie.split(";");
 
   for (var i = 0; i < cookies.length; i++) {
