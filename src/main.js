@@ -26,6 +26,7 @@ loadFavorites();
 //Places search section
 function placeSearch(value) {
   if(value != ""){
+    resultsWrapper.innerHTML = '<p>Fetching results, please hold...</p>';
     axios.get(GEOCODING_URL + value + '&limit=5&appid=' + API_KEY)
       .then(response => {
         updatePlaces(response.data);
@@ -84,9 +85,14 @@ function pickPlace(button){
 
 //Current weather section
 function getCurrentWeather(isFavorite){
-  console.log('updated weather');
+  if(!isFavorite){
+    currentWeatherResults.innerHTML = '<p>Fetching results, please hold...</p>';
+  }
   axios.get(CURRENT_WEATHER_URL + selectedLat + '&lon=' + selectedLon + '&appid=' + API_KEY)
       .then(response => {
+        if(!isFavorite){
+          currentWeatherResults.innerHTML = '';
+        }
         showWeatherResult(response.data, isFavorite);
         })
       .catch(error => {
@@ -97,11 +103,10 @@ function getCurrentWeather(isFavorite){
 //Forecast section
 function getForecast(){
   var numberOfDays = daySelection.value;
+  forecastResults.innerHTML = '<p>Fetching results, please hold...</p>';
   axios.get(FORECAST_URL + selectedLat + '&lon=' + selectedLon + '&cnt=' + numberOfDays + '&appid=' + API_KEY)
       .then(response => {
-          while(forecastResults.firstChild){
-            forecastResults.removeChild(forecastResults.firstChild);
-          }
+          forecastResults.innerHTML = '';
           for(var i = 0; i < response.data.list.length; i++){
             showForecastResult(response.data.city, response.data.list[i]);
           }
@@ -342,6 +347,8 @@ function checkCurrentResults(favLat, favLon){
         currentWeatherResults.removeChild(currentWeatherResults.firstChild);
       }
       getCurrentWeather(false);
+      selectedLat = null;
+      selectedLon = null;
     }
   }
 }
