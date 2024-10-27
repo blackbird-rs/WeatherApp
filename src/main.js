@@ -1,388 +1,300 @@
-const API_KEY = 'aa2e5ec578a180c792872490febac252'
-const GEOCODING_URL = 'http://api.openweathermap.org/geo/1.0/direct?q='
-const CURRENT_WEATHER_URL = 'https://api.openweathermap.org/data/2.5/weather?units=metric&lat='
-const FORECAST_URL = 'https://api.openweathermap.org/data/2.5/forecast/daily?units=metric&lat='
+const API_KEY = 'aa2e5ec578a180c792872490febac252';
+const GEOCODING_URL = `http://api.openweathermap.org/geo/1.0/direct?q=`;
+const CURRENT_WEATHER_URL = `https://api.openweathermap.org/data/2.5/weather?units=metric&lat=`;
+const FORECAST_URL = `https://api.openweathermap.org/data/2.5/forecast/daily?units=metric&lat=`;
+const ICON_URL = `https://openweathermap.org/img/wn/`;
 
-var selectedLat = ''
-var selectedLon = ''
+let selectedLat = '';
+let selectedLon = '';
 
-//Dom section
-var placeInputField = document.getElementById('placeInput');
-placeInputField.addEventListener('input', function(){
-  placeSearch(placeInputField.value);
-});
+// DOM section
+const placeInputField = document.getElementById('placeInput');
+placeInputField.addEventListener('input', handlePlaceSearch);
 
-var daySelection = document.getElementById('daySelection');
+const daySelection = document.getElementById('daySelection');
 daySelection.addEventListener('change', getForecast);
 
-var resultsWrapper = document.getElementById('placeResults');
-var currentWeatherResults = document.getElementById('currentWeatherResults');
-var forecastResults = document.getElementById('forecastResults');
-var favoritesResults = document.getElementById('favoritesResults');
+const resultsWrapper = document.getElementById('placeResults');
+const currentWeatherResults = document.getElementById('currentWeatherResults');
+const forecastResults = document.getElementById('forecastResults');
+const favoritesResults = document.getElementById('favoritesResults');
 
-var favorites = []; 
+let favorites = [];
 loadFavorites();
 
-//Places search section
-function placeSearch(value) {
-  if(value != ""){
+// Utility functions for DOM manipulation
+function clearContainer(container) {
+  while (container.firstChild) {
+    container.removeChild(container.firstChild);
+  }
+}
+
+function createElement(type, className, innerText) {
+  const element = document.createElement(type);
+  if (className) element.className = className;
+  if (innerText) element.innerText = innerText;
+  return element;
+}
+
+function appendChildren(parent, children) {
+  children.forEach(child => parent.appendChild(child));
+}
+
+// Rounding function
+function roundToTwoDecimal(value) {
+  return Math.round(value * 100) / 100;
+}
+
+// Places search section
+async function handlePlaceSearch(event) {
+  const value = event.target.value;
+  if (value !== "") {
     resultsWrapper.innerHTML = '<p>Fetching results, please hold...</p>';
-    axios.get(GEOCODING_URL + value + '&limit=5&appid=' + API_KEY)
-      .then(response => {
-        updatePlaces(response.data);
-        })
-      .catch(error => {
-        console.error('Error fetching data:', error);
-        });
+    try {
+      const response = await axios.get(`${GEOCODING_URL}${value}&limit=5&appid=${API_KEY}`);
+      updatePlaces(response.data);
+    } catch (error) {
+      console.error('Error fetching data:', error);
     }
-  else{
+  } else {
     updatePlaces(null);
   }
 }
 
 function updatePlaces(data) {
-  if (resultsWrapper) {
-    while(resultsWrapper.firstChild){
-      resultsWrapper.removeChild(resultsWrapper.firstChild);
-    }
-    if(data != null){
-      for (var i = 0; i < data.length; i++) {
-        const li = document.createElement('li');
-        const button = document.createElement('button');
-        button.id = 'placeResult' + i;
-        button.setAttribute('data-lat', data[i].lat);
-        button.setAttribute('data-lon', data[i].lon);
-        button.onclick = function(){
-          pickPlace(this);
-        };
-        button.innerText = data[i].name + ", " + data[i].country;
-        li.appendChild(button);
-        resultsWrapper.appendChild(li);
-      }    
-    }
-  } 
-  else {
-    console.error(`No element found with id: placeResults`);
+  clearContainer(resultsWrapper);
+  if (data) {
+    data.forEach((place, i) => {
+      const button = createElement('button', null, `${place.name}, ${place.country}`);
+      button.id = `placeResult${i}`;
+      button.setAttribute('data-lat', roundToTwoDecimal(place.lat));
+      button.setAttribute('data-lon', roundToTwoDecimal(place.lon));
+      button.addEventListener('click', () => pickPlace(button));
+      const li = createElement('li', null, null);
+      li.appendChild(button);
+      resultsWrapper.appendChild(li);
+    });
   }
 }
 
-function pickPlace(button){
+function pickPlace(button) {
   placeInputField.value = button.innerText;
-  selectedLat = button.getAttribute('data-lat');
-  selectedLon = button.getAttribute('data-lon');
-  while(resultsWrapper.firstChild){
-    resultsWrapper.removeChild(resultsWrapper.firstChild);
-  }
-  while(currentWeatherResults.firstChild){
-    currentWeatherResults.removeChild(currentWeatherResults.firstChild);
-  }
-  while(forecastResults.firstChild){
-    forecastResults.removeChild(forecastResults.firstChild);
-  }
+  selectedLat = roundToTwoDecimal(parseFloat(button.getAttribute('data-lat')));
+  selectedLon = roundToTwoDecimal(parseFloat(button.getAttribute('data-lon')));
+  clearContainer(resultsWrapper);
+  clearContainer(currentWeatherResults);
+  clearContainer(forecastResults);
   getCurrentWeather(false);
   setInterval(getCurrentWeather, 600000);
 }
 
-//Current weather section
-function getCurrentWeather(isFavorite){
-  if(!isFavorite){
+// Current weather section
+async function getCurrentWeather(isFavorite) {
+  if (!isFavorite) {
     currentWeatherResults.innerHTML = '<p>Fetching results, please hold...</p>';
   }
-  axios.get(CURRENT_WEATHER_URL + selectedLat + '&lon=' + selectedLon + '&appid=' + API_KEY)
-      .then(response => {
-        if(!isFavorite){
-          currentWeatherResults.innerHTML = '';
-        }
-        showWeatherResult(response.data, isFavorite);
-        })
-      .catch(error => {
-        console.error('Error fetching data:', error);
-        });
+  try {
+    const response = await axios.get(`${CURRENT_WEATHER_URL}${selectedLat}&lon=${selectedLon}&appid=${API_KEY}`);
+    if (!isFavorite) {
+      clearContainer(currentWeatherResults);
+    }
+    showWeatherResult(response.data, isFavorite);
+  } catch (error) {
+    console.error('Error fetching data:', error);
+  }
 }
 
-//Forecast section
-function getForecast(){
-  var numberOfDays = daySelection.value;
+// Forecast section
+async function getForecast() {
+  const numberOfDays = daySelection.value;
   forecastResults.innerHTML = '<p>Fetching results, please hold...</p>';
-  axios.get(FORECAST_URL + selectedLat + '&lon=' + selectedLon + '&cnt=' + numberOfDays + '&appid=' + API_KEY)
-      .then(response => {
-          forecastResults.innerHTML = '';
-          for(var i = 0; i < response.data.list.length; i++){
-            showForecastResult(response.data.city, response.data.list[i]);
-          }
-        })
-      .catch(error => {
-        console.error('Error fetching data:', error);
-        });  
+  try {
+    const response = await axios.get(`${FORECAST_URL}${selectedLat}&lon=${selectedLon}&cnt=${numberOfDays}&appid=${API_KEY}`);
+    clearContainer(forecastResults);
+    response.data.list.forEach(day => showForecastResult(response.data.city, day));
+  } catch (error) {
+    console.error('Error fetching data:', error);
+  }
 }
 
 // Weather presentation section
 function showWeatherResult(data, isFavorite) {
+  const wrapper = createElement('div', 'border border-blue-700 rounded-lg p-4 my-4 bg-white bg-opacity-30');
+  
+  const headline = createElement('h3', 'text-xl font-bold mb-2', 'Current Weather');
+  const cityInfo = createElement('div', 'flex items-center mb-2 justify-between');
 
-  var wrapper = document.createElement('div');
-  wrapper.className = 'border border-blue-700 rounded-lg p-4 my-4 bg-white bg-opacity-30';
+  const cityNameWrapper = createElement('div', 'flex items-center');
+  const cityIcon = createElement('i', 'fas fa-city mr-2');
+  const cityName = createElement('h5', 'text-lg font-semibold', data.name);
+  appendChildren(cityNameWrapper, [cityIcon, cityName]);
 
-  var headline = document.createElement('h3');
-  headline.innerText = 'Current Weather';
-  headline.className = 'text-xl font-bold mb-2';
-
-  var cityInfo = document.createElement('div');
-  cityInfo.className = 'flex items-center mb-2 justify-between';
-
-  var cityNameWrapper = document.createElement('div');
-  cityNameWrapper.className = 'flex items-center';
-
-  var cityIcon = document.createElement('i');
-  cityIcon.className = 'fas fa-city mr-2';
-
-  var cityName = document.createElement('h5');
-  cityName.innerText = data.name;
-  cityName.className = 'text-lg font-semibold';
-
-  cityNameWrapper.appendChild(cityIcon);
-  cityNameWrapper.appendChild(cityName);
-
-  var favoriteButton = document.createElement('button');
-  var locationData = [selectedLat, selectedLon];
-  if(favorites != null){
-    console.log("proveravam favorite");
-    console.log(locationData);
-    console.log(favorites);
-    var locationDataString = JSON.stringify(locationData);
-    var contains = favorites.some(function(ele){
-      return JSON.stringify(ele) === locationDataString;
-    });
-    if(contains){
-      favoriteButton.className = `fa-solid fa-heart`;
-      favoriteButton.onclick = function(){
-        unfavoriteCity(data.name, data.coord.lat, data.coord.lon, this);
-      }
+  const favoriteButton = createElement('button');
+  const locationData = [roundToTwoDecimal(selectedLat), roundToTwoDecimal(selectedLon)];
+  const contains = favorites.some(ele => JSON.stringify(ele) === JSON.stringify(locationData));
+  
+  favoriteButton.className = contains ? 'fa-solid fa-heart' : 'fa-regular fa-heart';
+  favoriteButton.addEventListener('click', () => {
+    if (contains) {
+      unfavoriteCity(data.coord.lat, data.coord.lon, favoriteButton);
+    } else {
+      favoriteCity(roundToTwoDecimal(data.coord.lat), roundToTwoDecimal(data.coord.lon), favoriteButton);
     }
-    else{
-      favoriteButton.className = 'fa-regular fa-heart';
-      favoriteButton.onclick = function() {
-        favoriteCity(data.name, data.coord.lat, data.coord.lon, this);
-      };
-    }
-  }
+  });
 
   cityInfo.appendChild(cityNameWrapper);
   cityInfo.appendChild(favoriteButton);
 
-  var infoWrapper = document.createElement('div');
-  infoWrapper.className = 'grid grid-cols-2 gap-4';
-
-  var descriptiveInformation = document.createElement('p');
-  descriptiveInformation.innerText = 'Description: ' + data.weather[0].description;
-
-  var temperature = document.createElement('p');
-  temperature.innerText = 'Temp: ' + data.main.temp + ' °C';
-
-  var wind = document.createElement('p');
-  wind.innerText = 'Wind: ' + data.wind.speed + ' m/s ' + data.wind.deg + '°';
-
-  var humidity = document.createElement('p');
-  humidity.innerText = 'Humidity: ' + data.main.humidity + '%';
-
-  var pressure = document.createElement('p');
-  pressure.innerText = 'Pressure: ' + data.main.pressure + ' hPa';
-
-  var icon = document.createElement('img');
-  icon.src = 'https://openweathermap.org/img/wn/' + data.weather[0].icon + '.png';
+  const infoWrapper = createElement('div', 'grid grid-cols-2 gap-4');
+  
+  const icon = createElement('img');
+  icon.src = `${ICON_URL}${data.weather[0].icon}.png`;
   icon.className = 'col-span-2 mx-auto';
 
-  infoWrapper.appendChild(icon);
-  infoWrapper.appendChild(descriptiveInformation);
-  infoWrapper.appendChild(temperature);
-  infoWrapper.appendChild(wind);
-  infoWrapper.appendChild(humidity);
-  infoWrapper.appendChild(pressure);
+  const details = [
+    createElement('p', null, `Description: ${data.weather[0].description}`),
+    createElement('p', null, `Temp: ${data.main.temp} °C`),
+    createElement('p', null, `Wind: ${data.wind.speed} m/s ${data.wind.deg}°`),
+    createElement('p', null, `Humidity: ${data.main.humidity}%`),
+    createElement('p', null, `Pressure: ${data.main.pressure} hPa`)
+  ];
 
-  wrapper.appendChild(headline);
-  wrapper.appendChild(cityInfo);
-  wrapper.appendChild(infoWrapper);
+  appendChildren(infoWrapper, [icon, ...details]);
+  appendChildren(wrapper, [headline, cityInfo, infoWrapper]);
 
   if (isFavorite) {
     favoritesResults.appendChild(wrapper);
   } else {
     currentWeatherResults.appendChild(wrapper);
-    currentWeatherResults.setAttribute('data-lat', data.coord.lat);
-    currentWeatherResults.setAttribute('data-lon', data.coord.lon);
+    currentWeatherResults.setAttribute('data-lat', roundToTwoDecimal(data.coord.lat));
+    currentWeatherResults.setAttribute('data-lon', roundToTwoDecimal(data.coord.lon));
   }
 }
 
 function showForecastResult(city, data) {
-  var wrapper = document.createElement('div');
-  wrapper.className = 'border border-blue-700 rounded-lg p-4 my-4 bg-white bg-opacity-30';
+  const wrapper = createElement('div', 'border border-blue-700 rounded-lg p-4 my-4 bg-white bg-opacity-30');
 
-  var headline = document.createElement('h3');
-  headline.innerText = 'Forecast: ' + convertTimestampToDateTime(data.dt);
-  headline.className = 'text-xl font-bold mb-2';
-
-  var cityInfo = document.createElement('div');
-  cityInfo.className = 'flex items-center mb-2 justify-between';
-
-  var cityNameWrapper = document.createElement('div');
-  cityNameWrapper.className = 'flex items-center';
-
-  var cityIcon = document.createElement('i');
-  cityIcon.className = 'fas fa-city mr-2';
-
-  var cityName = document.createElement('h5');
-  cityName.innerText = city.name;
-  cityName.className = 'text-lg font-semibold';
-
-  cityNameWrapper.appendChild(cityIcon);
-  cityNameWrapper.appendChild(cityName);
+  const headline = createElement('h3', 'text-xl font-bold mb-2', `Forecast: ${convertTimestampToDateTime(data.dt)}`);
+  const cityInfo = createElement('div', 'flex items-center mb-2 justify-between');
+  const cityNameWrapper = createElement('div', 'flex items-center');
+  
+  const cityIcon = createElement('i', 'fas fa-city mr-2');
+  const cityName = createElement('h5', 'text-lg font-semibold', city.name);
+  appendChildren(cityNameWrapper, [cityIcon, cityName]);
 
   cityInfo.appendChild(cityNameWrapper);
 
-  var infoWrapper = document.createElement('div');
-  infoWrapper.className = 'grid grid-cols-2 gap-4';
+  const infoWrapper = createElement('div', 'grid grid-cols-2 gap-4');
 
-  var descriptiveInformation = document.createElement('p');
-  descriptiveInformation.innerText = 'Description: ' + data.weather[0].description.charAt(0).toUpperCase() + data.weather[0].description.slice(1);
+  const details = [
+    createElement('p', null, `Description: ${data.weather[0].description.charAt(0).toUpperCase() + data.weather[0].description.slice(1)}`),
+    createElement('p', null, `Temp Max: ${data.temp.max} °C`),
+    createElement('p', null, `Temp Min: ${data.temp.min} °C`),
+    createElement('p', null, `Wind: ${data.speed} m/s ${data.deg}°`),
+    createElement('p', null, `Humidity: ${data.humidity}%`),
+    createElement('p', null, `Pressure: ${data.pressure} hPa`)
+  ];
 
-  var temperatureMax = document.createElement('p');
-  temperatureMax.innerText = 'Temp Max: ' + data.temp.max + ' °C';
-
-  var temperatureMin = document.createElement('p');
-  temperatureMin.innerText = 'Temp Min: ' + data.temp.min + ' °C';
-
-  var wind = document.createElement('p');
-  wind.innerText = 'Wind: ' + data.speed + ' m/s ' + data.deg + '°';
-
-  var humidity = document.createElement('p');
-  humidity.innerText = 'Humidity: ' + data.humidity + '%';
-
-  var pressure = document.createElement('p');
-  pressure.innerText = 'Pressure: ' + data.pressure + ' hPa';
-
-  var icon = document.createElement('img');
-  icon.src = 'https://openweathermap.org/img/wn/' + data.weather[0].icon + '.png';
+  const icon = createElement('img');
+  icon.src = `${ICON_URL}${data.weather[0].icon}.png`;
   icon.className = 'col-span-2 mx-auto';
 
-  infoWrapper.appendChild(icon);
-  infoWrapper.appendChild(descriptiveInformation);
-  infoWrapper.appendChild(temperatureMax);
-  infoWrapper.appendChild(temperatureMin);
-  infoWrapper.appendChild(wind);
-  infoWrapper.appendChild(humidity);
-  infoWrapper.appendChild(pressure);
-
-  wrapper.appendChild(headline);
-  wrapper.appendChild(cityInfo);
-  wrapper.appendChild(infoWrapper);
-
+  appendChildren(infoWrapper, [icon, ...details]);
+  appendChildren(wrapper, [headline, cityInfo, infoWrapper]);
+  
   forecastResults.appendChild(wrapper);
 }
+
 function convertTimestampToDateTime(dt) {
   const date = new Date(dt * 1000);
-
   const day = String(date.getDate()).padStart(2, '0');
-  const month = String(date.getMonth() + 1).padStart(2, '0'); // Months are zero-based
+  const month = String(date.getMonth() + 1).padStart(2, '0');
   const year = String(date.getFullYear()).slice(-2);
-
   return `${day}/${month}/${year}`;
 }
 
 // Favoriting section
-function favoriteCity(name, lat, lon, button) {
-  favorites.push([lat, lon]);
+function favoriteCity(lat, lon, button) {
+  favorites.push([roundToTwoDecimal(lat), roundToTwoDecimal(lon)]);
   button.className = 'fa-solid fa-heart';
-  setCookie('favoriteCities', JSON.stringify(favorites), 7);
+  manageCookie('favoriteCities', JSON.stringify(favorites), 7);
   loadFavorites();
-  console.log(favorites);
 }
 
-function unfavoriteCity(name, lat, lon, button){
-    const index = favorites.findIndex(fav => fav[0] === lat && fav[1] === lon);
-    favorites.splice(index, 1);
-    button.className = 'fa-regular fa-heart';
-    setCookie('favoriteCities', JSON.stringify(favorites), 7);
-    loadFavorites();
-    console.log(favorites);
-    checkCurrentResults(lat, lon);
+function unfavoriteCity(lat, lon, button) {
+  const index = favorites.findIndex(fav => 
+    fav[0] === roundToTwoDecimal(lat) && fav[1] === roundToTwoDecimal(lon)
+  );
+  favorites.splice(index, 1);
+  button.className = 'fa-regular fa-heart';
+  manageCookie('favoriteCities', JSON.stringify(favorites), 7);
+  loadFavorites();
+  checkCurrentResults(roundToTwoDecimal(lat), roundToTwoDecimal(lon));
 }
 
 function loadFavorites() {
-  //eraseAllCookies();
-    while(favoritesResults.firstChild){
-      favoritesResults.removeChild(favoritesResults.firstChild);
-    }
-  var cookie = getCookie('favoriteCities');
-  if(cookie != null){
+  clearContainer(favoritesResults);
+  const cookie = getCookie('favoriteCities');
+  if (cookie != null) {
     favorites = JSON.parse(cookie);
-    console.log("yo");
-    if(favorites.length == 0){
-      var headline = document.createElement('h3');
-      headline.innerText = 'No favorites added yet';
-      headline.className = 'text-xl font-bold mb-2';
+    if (favorites.length === 0) {
+      const headline = createElement('h3', 'text-xl font-bold mb-2', 'No favorites added yet');
       favoritesResults.appendChild(headline);
       return;
     }
-    for(var i = 0; i < favorites.length; i++){
-      selectedLat = favorites[i][0];
-      selectedLon = favorites[i][1];
+    favorites.forEach(fav => {
+      selectedLat = roundToTwoDecimal(fav[0]);
+      selectedLon = roundToTwoDecimal(fav[1]);
       getCurrentWeather(true);
-    }
-  }
-  else{
-    var headline = document.createElement('h3');
-    headline.innerText = 'No favorites added yet';
-    headline.className = 'text-xl font-bold mb-2';
+    });
+  } else {
+    const headline = createElement('h3', 'text-xl font-bold mb-2', 'No favorites added yet');
     favoritesResults.appendChild(headline);
   }
-  console.log(favorites);
 }
 
-function checkCurrentResults(favLat, favLon){
-  var lat = currentWeatherResults.getAttribute('data-lat');
-  var lon = currentWeatherResults.getAttribute('data-lon');
-  if(lat != null && lon != null){
-    if(favLat == lat && favLon == lon){
-      selectedLat = lat;
-      selectedLon = lon;
-      while(currentWeatherResults.firstChild){
-        currentWeatherResults.removeChild(currentWeatherResults.firstChild);
-      }
-      getCurrentWeather(false);
-      selectedLat = null;
-      selectedLon = null;
+function checkCurrentResults(favLat, favLon) {
+  const lat = roundToTwoDecimal(parseFloat(currentWeatherResults.getAttribute('data-lat')));
+  const lon = roundToTwoDecimal(parseFloat(currentWeatherResults.getAttribute('data-lon')));
+  if (lat && lon && favLat === lat && favLon === lon) {
+    selectedLat = lat;
+    selectedLon = lon;
+    clearContainer(currentWeatherResults);
+    getCurrentWeather(false);
+    selectedLat = null;
+    selectedLon = null;
+  }
+}
+
+// Cookie management utility functions
+function manageCookie(name, value, days) {
+  if (value !== undefined) {
+    let expires = "";
+    if (days) {
+      const date = new Date();
+      date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+      expires = "; expires=" + date.toUTCString();
     }
+    document.cookie = `${name}=${value || ""}${expires}; path=/`;
+  } else {
+    return getCookie(name);
   }
-}
-
-function setCookie(name, value, days) {
-  var expires = "";
-  if (days) {
-    var date = new Date();
-    date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
-    expires = "; expires=" + date.toUTCString();
-  }
-  document.cookie = name + "=" + (value || "") + expires + "; path=/";
 }
 
 function getCookie(name) {
-  var nameEQ = name + "=";
-  var ca = document.cookie.split(';');
-  for (var i = 0; i < ca.length; i++) {
-    var c = ca[i];
-    while (c.charAt(0) == ' ') c = c.substring(1, c.length);
-    if (c.indexOf(nameEQ) == 0) return c.substring(nameEQ.length, c.length);
+  const nameEQ = `${name}=`;
+  const ca = document.cookie.split(';');
+  for (let i = 0; i < ca.length; i++) {
+    let c = ca[i].trim();
+    if (c.indexOf(nameEQ) === 0) return c.substring(nameEQ.length, c.length);
   }
   return null;
 }
 
 function eraseAllCookies() {
-  console.log("brisem");
-  var cookies = document.cookie.split(";");
-
-  for (var i = 0; i < cookies.length; i++) {
-    var cookie = cookies[i];
-    var eqPos = cookie.indexOf("=");
-    var name = eqPos > -1 ? cookie.substr(0, eqPos) : cookie;
-    document.cookie = name + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/";
-  }
+  const cookies = document.cookie.split(";");
+  cookies.forEach(cookie => {
+    const name = cookie.split("=")[0].trim();
+    document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/`;
+  });
 }
-
