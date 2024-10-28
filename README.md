@@ -34,6 +34,12 @@ A simple weather application that allows users to search for current weather and
    cd WeatherApp/src
    ```
 
+### API Key
+
+This application uses OpenWeather API, to enable API calls, add your API key instead of `your_api_key_here` in line:
+
+`const API_KEY = 'your_api_key_here';`
+
 ### Usage
 
 1. Open the `index.html` file in your browser to view the app.
