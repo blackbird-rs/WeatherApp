@@ -1,4 +1,4 @@
-const API_KEY = 'your_api_key_here';
+const API_KEY = 'aa2e5ec578a180c792872490febac252';
 const GEOCODING_URL = `http://api.openweathermap.org/geo/1.0/direct?q=`;
 const CURRENT_WEATHER_URL = `https://api.openweathermap.org/data/2.5/weather?units=metric&lat=`;
 const FORECAST_URL = `https://api.openweathermap.org/data/2.5/forecast/daily?units=metric&lat=`;
@@ -140,7 +140,7 @@ function showWeatherResult(data, isFavorite) {
   const locationData = [roundToTwoDecimal(selectedLat), roundToTwoDecimal(selectedLon)];
   const contains = favorites.some(ele => JSON.stringify(ele) === JSON.stringify(locationData));
   
-  favoriteButton.className = contains ? 'fa-solid fa-heart' : 'fa-regular fa-heart';
+  favoriteButton.className = contains ? 'fa-solid fa-heart text-red-600' : 'fa-regular fa-heart text-red-600';
   favoriteButton.addEventListener('click', () => {
     toggleFavorite(roundToTwoDecimal(data.coord.lat), roundToTwoDecimal(data.coord.lon), favoriteButton);
   });
@@ -228,7 +228,7 @@ function toggleFavorite(lat, lon, button) {
 }
 function favoriteCity(lat, lon, button) {
   favorites.push([roundToTwoDecimal(lat), roundToTwoDecimal(lon)]);
-  button.className = 'fa-solid fa-heart';
+  button.className = 'fa-solid fa-heart text-red-600';
   manageCookie('favoriteCities', JSON.stringify(favorites), 7);
   loadFavorites();
 }
@@ -238,7 +238,7 @@ function unfavoriteCity(lat, lon, button) {
     fav[0] === roundToTwoDecimal(lat) && fav[1] === roundToTwoDecimal(lon)
   );
   favorites.splice(index, 1);
-  button.className = 'fa-regular fa-heart';
+  button.className = 'fa-regular fa-heart text-red-600';
   manageCookie('favoriteCities', JSON.stringify(favorites), 7);
   loadFavorites();
   checkCurrentResults(roundToTwoDecimal(lat), roundToTwoDecimal(lon));
