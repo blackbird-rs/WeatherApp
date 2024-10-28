@@ -142,11 +142,7 @@ function showWeatherResult(data, isFavorite) {
   
   favoriteButton.className = contains ? 'fa-solid fa-heart' : 'fa-regular fa-heart';
   favoriteButton.addEventListener('click', () => {
-    if (contains) {
-      unfavoriteCity(data.coord.lat, data.coord.lon, favoriteButton);
-    } else {
-      favoriteCity(roundToTwoDecimal(data.coord.lat), roundToTwoDecimal(data.coord.lon), favoriteButton);
-    }
+    toggleFavorite(roundToTwoDecimal(data.coord.lat), roundToTwoDecimal(data.coord.lon), favoriteButton);
   });
 
   cityInfo.appendChild(cityNameWrapper);
@@ -221,6 +217,15 @@ function convertTimestampToDateTime(dt) {
 }
 
 // Favoriting section
+function toggleFavorite(lat, lon, button) {
+  const isInFavorites = favorites.some(ele => JSON.stringify(ele) === JSON.stringify([lat, lon]));
+  if(isInFavorites){
+    unfavoriteCity(lat, lon, button);
+  }
+  else{
+    favoriteCity(lat, lon, button);
+  }
+}
 function favoriteCity(lat, lon, button) {
   favorites.push([roundToTwoDecimal(lat), roundToTwoDecimal(lon)]);
   button.className = 'fa-solid fa-heart';
@@ -283,6 +288,7 @@ function manageCookie(name, value, days) {
       expires = "; expires=" + date.toUTCString();
     }
     document.cookie = `${name}=${value || ""}${expires}; path=/`;
+	  localStorage.setItem(name, value);
   } else {
     return getCookie(name);
   }
@@ -294,6 +300,10 @@ function getCookie(name) {
   for (let i = 0; i < ca.length; i++) {
     let c = ca[i].trim();
     if (c.indexOf(nameEQ) === 0) return c.substring(nameEQ.length, c.length);
+  }
+	let localStorageData = localStorage.getItem(name);
+  if(localStorageData !== null){
+    return localStorageData;
   }
   return null;
 }
