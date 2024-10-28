@@ -1,4 +1,4 @@
-const API_KEY = 'aa2e5ec578a180c792872490febac252';
+const API_KEY = 'your_api_key_here';
 const GEOCODING_URL = `http://api.openweathermap.org/geo/1.0/direct?q=`;
 const CURRENT_WEATHER_URL = `https://api.openweathermap.org/data/2.5/weather?units=metric&lat=`;
 const FORECAST_URL = `https://api.openweathermap.org/data/2.5/forecast/daily?units=metric&lat=`;
