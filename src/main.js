@@ -1,4 +1,4 @@
-const API_KEY = 'aa2e5ec578a180c792872490febac252';
+const API_KEY = 'your_api_key_here';
 const GEOCODING_URL = `http://api.openweathermap.org/geo/1.0/direct?q=`;
 const CURRENT_WEATHER_URL = `https://api.openweathermap.org/data/2.5/weather?units=metric&lat=`;
 const FORECAST_URL = `https://api.openweathermap.org/data/2.5/forecast/daily?units=metric&lat=`;
@@ -6,6 +6,11 @@ const ICON_URL = `https://openweathermap.org/img/wn/`;
 
 let selectedLat = null;
 let selectedLon = null;
+let selectedName = null;
+
+let lastLat = null;
+let lastLon = null;
+let lastName = null;
 
 // DOM section
 const placeInputField = document.getElementById('placeInput');
@@ -67,6 +72,7 @@ function updatePlaces(data) {
     data.forEach((place, i) => {
       const button = createElement('button', 'w-full text-left p-2 hover:bg-gray-200', `${place.name}, ${place.country}`);
       button.id = `placeResult${i}`;
+      button.setAttribute('city-name', button.innerText);
       button.setAttribute('data-lat', roundToTwoDecimal(place.lat));
       button.setAttribute('data-lon', roundToTwoDecimal(place.lon));
       button.addEventListener('click', () => pickPlace(button));
@@ -79,29 +85,39 @@ function updatePlaces(data) {
 
 function pickPlace(button) {
   placeInputField.value = button.innerText;
+  selectedName = button.getAttribute('city-name');
   selectedLat = roundToTwoDecimal(parseFloat(button.getAttribute('data-lat')));
   selectedLon = roundToTwoDecimal(parseFloat(button.getAttribute('data-lon')));
+  lastName = selectedName;
+  lastLat = selectedLat;
+  lastLon = selectedLon;
   clearContainer(resultsWrapper);
   clearContainer(currentWeatherResults);
   clearContainer(forecastResults);
-  getCurrentWeather(false);
-  setInterval(getCurrentWeather, 600000);
+  getCurrentWeather(selectedName, false);
+  setInterval(function() { getCurrentWeather(lastName, false, lastLat, lastLon) }, 600000);
   if(daySelection.value != ''){
     getForecast();
   };
 }
 
 // Current weather section
-async function getCurrentWeather(isFavorite) {
+async function getCurrentWeather(name, isFavorite, previousLat = null, previousLon = null) {
   if (!isFavorite) {
     currentWeatherResults.innerHTML = '<p>Fetching results, please hold...</p>';
   }
   try {
+    if(previousLat !== null && previousLon !== null){
+      selectedLat = previousLat;
+      selectedLon = previousLon;
+    }
+    let tempLat = selectedLat;
+    let tempLon = selectedLon;
     const response = await axios.get(`${CURRENT_WEATHER_URL}${selectedLat}&lon=${selectedLon}&appid=${API_KEY}`);
     if (!isFavorite) {
       clearContainer(currentWeatherResults);
     }
-    showWeatherResult(response.data, isFavorite);
+    showWeatherResult(response.data, name, tempLat, tempLon, isFavorite);
   } catch (error) {
     console.error('Error fetching data:', error);
   }
@@ -110,9 +126,16 @@ async function getCurrentWeather(isFavorite) {
 // Forecast section
 async function getForecast() {
   const numberOfDays = daySelection.value;
-  if(selectedLat === null || selectedLon === null){
-    forecastResults.innerHTML = '<p>Please select a city to look up the forecast</p>';
-    return;
+  if(selectedLat === null || selectedLon === null || selectedName === null){
+    if(lastLat === null || lastLon === null || lastName === null){
+      forecastResults.innerHTML = '<p>Please select a city to look up the forecast</p>';
+      return;
+    }
+    else{
+      selectedLat = lastLat;
+      selectedLon = lastLon;
+      selectedName = lastName;
+    }
   }
   forecastResults.innerHTML = '<p>Fetching results, please hold...</p>';
   try {
@@ -125,7 +148,7 @@ async function getForecast() {
 }
 
 // Weather presentation section
-function showWeatherResult(data, isFavorite) {
+function showWeatherResult(data, name, lat, lon, isFavorite) {
   const wrapper = createElement('div', 'border border-blue-700 rounded-lg p-4 my-4 bg-white bg-opacity-30');
   
   const headline = createElement('h3', 'text-xl font-bold mb-2', 'Current Weather');
@@ -133,16 +156,15 @@ function showWeatherResult(data, isFavorite) {
 
   const cityNameWrapper = createElement('div', 'flex items-center');
   const cityIcon = createElement('i', 'fas fa-city mr-2');
-  const cityName = createElement('h5', 'text-lg font-semibold', data.name);
+  const cityName = createElement('h5', 'text-lg font-semibold', name);
   appendChildren(cityNameWrapper, [cityIcon, cityName]);
 
   const favoriteButton = createElement('button');
-  const locationData = [roundToTwoDecimal(selectedLat), roundToTwoDecimal(selectedLon)];
+  const locationData = [[roundToTwoDecimal(lat), roundToTwoDecimal(lon)], name];
   const contains = favorites.some(ele => JSON.stringify(ele) === JSON.stringify(locationData));
-  
   favoriteButton.className = contains ? 'fa-solid fa-heart text-red-600' : 'fa-regular fa-heart text-red-600';
   favoriteButton.addEventListener('click', () => {
-    toggleFavorite(roundToTwoDecimal(data.coord.lat), roundToTwoDecimal(data.coord.lon), favoriteButton);
+    toggleFavorite(roundToTwoDecimal(data.coord.lat), roundToTwoDecimal(data.coord.lon), cityName.innerText, favoriteButton);
   });
 
   cityInfo.appendChild(cityNameWrapper);
@@ -169,6 +191,7 @@ function showWeatherResult(data, isFavorite) {
     favoritesResults.appendChild(wrapper);
   } else {
     currentWeatherResults.appendChild(wrapper);
+    currentWeatherResults.setAttribute('city-name', name);
     currentWeatherResults.setAttribute('data-lat', roundToTwoDecimal(data.coord.lat));
     currentWeatherResults.setAttribute('data-lon', roundToTwoDecimal(data.coord.lon));
   }
@@ -182,7 +205,7 @@ function showForecastResult(city, data) {
   const cityNameWrapper = createElement('div', 'flex items-center');
   
   const cityIcon = createElement('i', 'fas fa-city mr-2');
-  const cityName = createElement('h5', 'text-lg font-semibold', city.name);
+  const cityName = createElement('h5', 'text-lg font-semibold', selectedName);
   appendChildren(cityNameWrapper, [cityIcon, cityName]);
 
   cityInfo.appendChild(cityNameWrapper);
@@ -217,34 +240,35 @@ function convertTimestampToDateTime(dt) {
 }
 
 // Favoriting section
-function toggleFavorite(lat, lon, button) {
-  const isInFavorites = favorites.some(ele => JSON.stringify(ele) === JSON.stringify([lat, lon]));
+function toggleFavorite(lat, lon, name, button) {
+  const isInFavorites = favorites.some(ele => JSON.stringify(ele) === JSON.stringify([[lat, lon], name]));
   if(isInFavorites){
-    unfavoriteCity(lat, lon, button);
+    unfavoriteCity(lat, lon, name, button);
   }
   else{
-    favoriteCity(lat, lon, button);
+    favoriteCity(lat, lon, name, button);
   }
 }
-function favoriteCity(lat, lon, button) {
-  favorites.push([roundToTwoDecimal(lat), roundToTwoDecimal(lon)]);
+function favoriteCity(lat, lon, name, button) {
+  favorites.push([[roundToTwoDecimal(lat), roundToTwoDecimal(lon)], name]);
   button.className = 'fa-solid fa-heart text-red-600';
   manageCookie('favoriteCities', JSON.stringify(favorites), 7);
   loadFavorites();
 }
 
-function unfavoriteCity(lat, lon, button) {
+function unfavoriteCity(lat, lon, name, button) {
   const index = favorites.findIndex(fav => 
-    fav[0] === roundToTwoDecimal(lat) && fav[1] === roundToTwoDecimal(lon)
+    fav[0][0] === roundToTwoDecimal(lat) && fav[0][1] === roundToTwoDecimal(lon)
   );
   favorites.splice(index, 1);
   button.className = 'fa-regular fa-heart text-red-600';
   manageCookie('favoriteCities', JSON.stringify(favorites), 7);
+  checkCurrentResults(roundToTwoDecimal(lat), roundToTwoDecimal(lon), name);
   loadFavorites();
-  checkCurrentResults(roundToTwoDecimal(lat), roundToTwoDecimal(lon));
 }
 
 function loadFavorites() {
+  //eraseAllCookies();
   clearContainer(favoritesResults);
   const cookie = getCookie('favoriteCities');
   if (cookie != null) {
@@ -255,9 +279,9 @@ function loadFavorites() {
       return;
     }
     favorites.forEach(fav => {
-      selectedLat = roundToTwoDecimal(fav[0]);
-      selectedLon = roundToTwoDecimal(fav[1]);
-      getCurrentWeather(true);
+      selectedLat = roundToTwoDecimal(fav[0][0]);
+      selectedLon = roundToTwoDecimal(fav[0][1]);
+      getCurrentWeather(fav[1], true);
     });
   } else {
     const headline = createElement('h3', 'text-xl font-bold mb-2', 'No favorites added yet');
@@ -265,16 +289,19 @@ function loadFavorites() {
   }
 }
 
-function checkCurrentResults(favLat, favLon) {
+function checkCurrentResults(favLat, favLon, favName) {
   const lat = roundToTwoDecimal(parseFloat(currentWeatherResults.getAttribute('data-lat')));
   const lon = roundToTwoDecimal(parseFloat(currentWeatherResults.getAttribute('data-lon')));
-  if (lat && lon && favLat === lat && favLon === lon) {
+  const name = currentWeatherResults.getAttribute('city-name');
+  if (lat && lon && name && favLat === lat && favLon === lon && favName === name) {
     selectedLat = lat;
     selectedLon = lon;
+    selectedName = name;
     clearContainer(currentWeatherResults);
-    getCurrentWeather(false);
+    getCurrentWeather(selectedName, false);
     selectedLat = null;
     selectedLon = null;
+    selectedName = null;
   }
 }
 
@@ -309,6 +336,7 @@ function getCookie(name) {
 }
 
 function eraseAllCookies() {
+  localStorage.removeItem('favoriteCities');
   const cookies = document.cookie.split(";");
   cookies.forEach(cookie => {
     const name = cookie.split("=")[0].trim();
